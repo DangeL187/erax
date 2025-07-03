@@ -81,6 +81,10 @@ func (e *ErrorType) WithMetas(metas map[string]interface{}) Error {
 }
 
 func New(err error, msg string) Error {
+	if err == nil {
+		return nil
+	}
+	
 	return &ErrorType{
 		err: err,
 		msg: msg,
