@@ -49,6 +49,21 @@ func formatError(text string) string {
 	return output
 }
 
+func formatValue(keySize int, text string) string {
+	lines := strings.Split(text, "\n")
+	output := ""
+	for lineIdx, line := range lines {
+		if lineIdx != 0 {
+			output += branch2 + strings.Repeat(" ", keySize)
+		}
+		output += line
+		if lineIdx < len(lines)-1 {
+			output += "\n"
+		}
+	}
+	return output
+}
+
 func formatErrorChain(err Error, isFirst bool) string {
 	var sb strings.Builder
 
@@ -68,8 +83,10 @@ func formatErrorChain(err Error, isFirst bool) string {
 		value := err.Metas()[key]
 		connector := " " + branch1
 		if i == len(keys)-1 {
-			connector = " " + branch3
+			connector = branch3
 		}
+
+		value = formatValue(len(key)+6, value.(string))
 		sb.WriteString(fmt.Sprintf("%s%s%s: %v\n", branch2, connector, keyText.Render(key), value))
 	}
 
