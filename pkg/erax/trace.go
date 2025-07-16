@@ -72,7 +72,9 @@ func formatErrorChain(err Error, isFirst bool) string {
 		prefix = message + "\n" + branch1
 	}
 
-	sb.WriteString(prefix + formatError(err.Msg()) + "\n")
+	if err.Msg() != "" {
+		sb.WriteString(prefix + formatError(err.Msg()) + "\n")
+	}
 
 	keys := make([]string, 0, len(err.Metas()))
 	for key := range err.Metas() {
