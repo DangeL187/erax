@@ -3,9 +3,10 @@ package erax
 import (
 	"errors"
 	"fmt"
-	"github.com/charmbracelet/lipgloss"
 	"sort"
 	"strings"
+
+	"github.com/charmbracelet/lipgloss"
 )
 
 func Trace(err Error) string {
@@ -49,12 +50,12 @@ func formatError(text string) string {
 	return output
 }
 
-func formatValue(keySize int, text string) string {
+func formatText(text string) string {
 	lines := strings.Split(text, "\n")
 	output := ""
 	for lineIdx, line := range lines {
 		if lineIdx != 0 {
-			output += branch2 + strings.Repeat(" ", keySize)
+			output += branch2 + " "
 		}
 		output += line
 		if lineIdx < len(lines)-1 {
@@ -72,9 +73,7 @@ func formatErrorChain(err Error, isFirst bool) string {
 		prefix = message + "\n" + branch1
 	}
 
-	if err.Msg() != "" {
-		sb.WriteString(prefix + formatError(err.Msg()) + "\n")
-	}
+	sb.WriteString(prefix + formatError(err.Msg()) + "\n")
 
 	keys := make([]string, 0, len(err.Metas()))
 	for key := range err.Metas() {
@@ -85,11 +84,9 @@ func formatErrorChain(err Error, isFirst bool) string {
 		value := err.Metas()[key]
 		connector := " " + branch1
 		if i == len(keys)-1 {
-			connector = branch3
+			connector = " " + branch3
 		}
-
-		value = formatValue(len(key)+6, value.(string))
-		sb.WriteString(fmt.Sprintf("%s%s%s: %v\n", branch2, connector, keyText.Render(key), value))
+		sb.WriteString(fmt.Sprintf("%s%s%s: %v\n", branch2, connector, keyText.Render(key), formatText(value.(string))))
 	}
 
 	if unwrapped := err.Unwrap(); unwrapped != nil {

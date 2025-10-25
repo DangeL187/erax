@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/DangeL187/erax/pkg/erax"
+	"github.com/DangeL187/erax/erax"
 )
 
 func jsonPrint(data map[string]interface{}) {

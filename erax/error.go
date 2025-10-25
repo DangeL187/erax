@@ -17,10 +17,6 @@ type Error interface {
 	WithMetas(metas map[string]interface{}) Error
 }
 
-type MetaProvider interface {
-	Meta(key string) (interface{}, Error)
-}
-
 type ErrorType struct {
 	err  error
 	meta map[string]interface{}
@@ -81,6 +77,10 @@ func (e *ErrorType) WithMetas(metas map[string]interface{}) Error {
 }
 
 func New(err error, msg string) Error {
+	if err == nil {
+		return nil
+	}
+
 	return &ErrorType{
 		err: err,
 		msg: msg,
