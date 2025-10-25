@@ -17,9 +17,10 @@ It provides error chaining, custom metadata, and styled error traces using the [
 
 ```go
 func CreateUser() erax.Error {
-	err := errors.New("email already in use")
+	err := errors.New("email is already in use")
 	return erax.New(err, "failed to create user").
-		WithMeta("code", 503).
+		WithMeta("code", "503").
+		WithMeta("info", "This is a really\nreally long information.").
 		WithMeta("user_error", "An account with this email already exists.")
 }
 
@@ -39,8 +40,11 @@ erax.Trace(err)
  │  because of ducks!
  ├─ failed to create user
  │   ├─ code: 503
+ │   ├─ info: 
+ │   │   This is a really
+ │   │   really long information.
  │   ╰─ user_error: An account with this email already exists.
- ╰─ email already in use
+ ╰─ email is already in use
 ```
 
 Check out the full [example](https://github.com/DangeL187/erax/blob/main/examples/main.go)
@@ -55,12 +59,12 @@ NewFromString(err string, msg string) erax.Error // Creates a new erax.Error fro
 
 **Error Methods:**
 ```go
-Msg() string                                  // Retrieves Error's message
-Meta(key string) (interface{}, Error)         // Retrieves metadata by key
-Metas() map[string]interface{}                // Returns all metadata as a map
+Msg() string                             // Retrieves Error's message
+Meta(key string) (string, Error)         // Retrieves metadata by key
+Metas() map[string]string                // Returns all metadata as a map
 
-WithMeta(key string, value interface{}) Error // Attaches a key-value pair
-WithMetas(metas map[string]interface{}) Error // Attaches multiple metadata entries
+WithMeta(key string, value string) Error // Attaches a key-value pair
+WithMetas(metas map[string]string) Error // Attaches multiple metadata entries
 ```
 
 **Error Trace Output:**
@@ -71,4 +75,5 @@ Trace(err Error) string // Pretty-prints the full error chain and metadata.
 SetErrorColor(color lipgloss.Color)
 SetKeyColor(color lipgloss.Color)
 SetNormalColor(color lipgloss.Color)
+SetValueColor(color lipgloss.Color)
 ```

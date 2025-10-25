@@ -35,6 +35,11 @@ func SetNormalColor(color lipgloss.Color) {
 	message = lipgloss.NewStyle().Foreground(normalColor).Render(" ▼ [ERROR TRACE]\n")
 }
 
+func SetValueColor(color lipgloss.Color) {
+	valueColor = color
+	valueText = lipgloss.NewStyle().Foreground(valueColor)
+}
+
 func formatError(text string) string {
 	lines := strings.Split(text, "\n")
 	output := ""
