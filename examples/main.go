@@ -22,9 +22,10 @@ func log(text string) {
 }
 
 func CreateUser() erax.Error {
-	err := errors.New("email already in use")
+	err := errors.New("email is already in use")
 	return erax.New(err, "failed to create user").
-		WithMeta("code", 503).
+		WithMeta("code", "503").
+		WithMeta("info", "This is a really\nreally long information.").
 		WithMeta("user_error", "An account with this email already exists.")
 }
 

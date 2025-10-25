@@ -10,16 +10,16 @@ type Error interface {
 	Unwrap() error
 
 	Msg() string
-	Meta(key string) (interface{}, Error)
-	Metas() map[string]interface{}
+	Meta(key string) (string, Error)
+	Metas() map[string]string
 
-	WithMeta(key string, value interface{}) Error
-	WithMetas(metas map[string]interface{}) Error
+	WithMeta(key string, value string) Error
+	WithMetas(metas map[string]string) Error
 }
 
 type ErrorType struct {
 	err  error
-	meta map[string]interface{}
+	meta map[string]string
 	msg  string
 }
 
@@ -35,7 +35,7 @@ func (e *ErrorType) Msg() string {
 	return e.msg
 }
 
-func (e *ErrorType) Meta(key string) (interface{}, Error) {
+func (e *ErrorType) Meta(key string) (string, Error) {
 	if e.Metas() != nil && len(e.Metas()) > 0 {
 		if val, ok := e.meta[key]; ok {
 			return val, nil
@@ -45,18 +45,18 @@ func (e *ErrorType) Meta(key string) (interface{}, Error) {
 	var current Error
 	ok := errors.As(e.err, &current)
 	if !ok {
-		return nil, NewFromString("key not found in error chain", "")
+		return "", NewFromString("key not found in error chain", "")
 	}
 	return current.Meta(key)
 }
 
-func (e *ErrorType) Metas() map[string]interface{} {
+func (e *ErrorType) Metas() map[string]string {
 	return e.meta
 }
 
-func (e *ErrorType) WithMeta(key string, value interface{}) Error {
+func (e *ErrorType) WithMeta(key, value string) Error {
 	if e.meta == nil {
-		e.meta = make(map[string]interface{})
+		e.meta = make(map[string]string)
 	}
 
 	e.meta[key] = value
@@ -64,9 +64,9 @@ func (e *ErrorType) WithMeta(key string, value interface{}) Error {
 	return e
 }
 
-func (e *ErrorType) WithMetas(metas map[string]interface{}) Error {
+func (e *ErrorType) WithMetas(metas map[string]string) Error {
 	if e.meta == nil {
-		e.meta = make(map[string]interface{})
+		e.meta = make(map[string]string)
 	}
 
 	for k, v := range metas {

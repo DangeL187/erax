@@ -50,19 +50,33 @@ func formatError(text string) string {
 	return output
 }
 
-func formatText(text string) string {
+func formatValue(text string) string {
 	lines := strings.Split(text, "\n")
-	output := ""
-	for lineIdx, line := range lines {
-		if lineIdx != 0 {
-			output += branch2 + " "
+	var sb strings.Builder
+
+	if len(lines) > 1 {
+		sb.WriteString("\n")
+	}
+
+	for i, line := range lines {
+		var prefix string
+		if len(lines) > 1 {
+			prefix = branch2 + " " + branch2 + "  "
+		} else if i != 0 {
+			prefix = branch2 + "      "
+		} else {
+			prefix = ""
 		}
-		output += line
-		if lineIdx < len(lines)-1 {
-			output += "\n"
+
+		sb.WriteString(prefix)
+		sb.WriteString(valueText.Render(line))
+
+		if i < len(lines)-1 {
+			sb.WriteString("\n")
 		}
 	}
-	return output
+
+	return sb.String()
 }
 
 func formatErrorChain(err Error, isFirst bool) string {
@@ -86,7 +100,7 @@ func formatErrorChain(err Error, isFirst bool) string {
 		if i == len(keys)-1 {
 			connector = " " + branch3
 		}
-		sb.WriteString(fmt.Sprintf("%s%s%s: %v\n", branch2, connector, keyText.Render(key), formatText(value.(string))))
+		sb.WriteString(fmt.Sprintf("%s%s%s: %v\n", branch2, connector, keyText.Render(key), formatValue(value)))
 	}
 
 	if unwrapped := err.Unwrap(); unwrapped != nil {
@@ -104,10 +118,12 @@ func formatErrorChain(err Error, isFirst bool) string {
 var (
 	errorColor  lipgloss.Color = "#f38ba8"
 	keyColor    lipgloss.Color = "#cba6f7"
+	valueColor  lipgloss.Color = "#a6e3a1"
 	normalColor lipgloss.Color = "#585b70"
 
 	errorText = lipgloss.NewStyle().Foreground(errorColor)
 	keyText   = lipgloss.NewStyle().Foreground(keyColor)
+	valueText = lipgloss.NewStyle().Foreground(valueColor)
 
 	branch1 = lipgloss.NewStyle().Foreground(normalColor).Render(" ├─ ")
 	branch2 = lipgloss.NewStyle().Foreground(normalColor).Render(" │ ")
