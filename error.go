@@ -2,94 +2,107 @@ package erax
 
 import (
 	"errors"
+	"fmt"
+	"io"
 )
 
-type Error interface {
-	error
-
-	Unwrap() error
-
-	Msg() string
-	Meta(key string) (string, error)
-	Metas() map[string]string
-
-	WithMeta(key string, value string) Error
-	WithMetas(metas map[string]string) Error
-}
-
-type ErrorType struct {
+type errorType struct {
 	err  error
 	meta map[string]string
 	msg  string
 }
 
-func (e *ErrorType) Unwrap() error {
-	return e.err
-}
+func (e *errorType) Unwrap() error { return e.err }
 
-func (e *ErrorType) Error() string {
-	return e.err.Error()
-}
+func (e *errorType) Error() string { return e.msg }
 
-func (e *ErrorType) Msg() string {
-	return e.msg
-}
+func (e *errorType) Format(s fmt.State, verb rune) {
+	switch verb {
+	case 'f':
+		_, _ = io.WriteString(s, formatErrorChain(e, true))
+	case 'v':
+		if s.Flag('+') {
+			unwrapped := e.Unwrap()
+			msg := e.Error()
 
-func (e *ErrorType) Meta(key string) (string, error) {
-	if e.Metas() != nil && len(e.Metas()) > 0 {
-		if val, ok := e.meta[key]; ok {
-			return val, nil
+			if msg != "" {
+				_, _ = io.WriteString(s, formatErrorChain(e, false))
+			} else if unwrapped != nil {
+				_, _ = fmt.Fprintf(s, "%+v", unwrapped)
+			}
+			return
 		}
+		fallthrough
+	case 's':
+		_, _ = io.WriteString(s, e.Error())
+	case 'q':
+		_, _ = fmt.Fprintf(s, "%q", e.Error())
 	}
-
-	var current Error
-	ok := errors.As(e.err, &current)
-	if !ok {
-		return "", errors.New("key not found in error chain")
-	}
-	return current.Meta(key)
 }
 
-func (e *ErrorType) Metas() map[string]string {
-	return e.meta
-}
-
-func (e *ErrorType) WithMeta(key, value string) Error {
-	if e.meta == nil {
-		e.meta = make(map[string]string)
-	}
-
-	e.meta[key] = value
-
-	return e
-}
-
-func (e *ErrorType) WithMetas(metas map[string]string) Error {
-	if e.meta == nil {
-		e.meta = make(map[string]string)
-	}
-
-	for k, v := range metas {
-		e.meta[k] = v
-	}
-
-	return e
-}
-
-func New(err error, msg string) Error {
+func Wrap(err error, message string) error {
 	if err == nil {
 		return nil
 	}
 
-	return &ErrorType{
+	return &errorType{
 		err: err,
-		msg: msg,
+		msg: message,
 	}
 }
 
-func NewFromString(err string, msg string) Error {
-	return &ErrorType{
-		err: errors.New(err),
-		msg: msg,
+func WithMeta(err error, key, value string) error {
+	if err == nil {
+		return nil
 	}
+
+	var e *errorType
+	if errors.As(err, &e) {
+		if e.meta == nil {
+			e.meta = make(map[string]string)
+		}
+		e.meta[key] = value
+		return err
+	}
+
+	return &errorType{
+		err: err,
+		msg: "",
+		meta: map[string]string{
+			key: value,
+		},
+	}
+}
+
+func GetMeta(err error, key string) (string, bool) {
+	for err != nil {
+		var e *errorType
+		if errors.As(err, &e) {
+			if e.meta != nil {
+				if v, ok := e.meta[key]; ok {
+					return v, true
+				}
+			}
+		}
+		err = errors.Unwrap(err)
+	}
+	return "", false
+}
+
+func GetMetas(err error) map[string]string {
+	var e *errorType
+	if !errors.As(err, &e) {
+		return map[string]string{}
+	}
+
+	if e.meta == nil {
+		return map[string]string{}
+	}
+
+	out := make(map[string]string, len(e.meta))
+	for k, v := range e.meta {
+		out[k] = v
+	}
+
+	return out
 }

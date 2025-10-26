@@ -9,14 +9,6 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
-func Trace(err Error) string {
-	if err == nil {
-		return ""
-	}
-
-	return formatErrorChain(err, true)
-}
-
 func SetErrorColor(color lipgloss.Color) {
 	errorColor = color
 	errorText = lipgloss.NewStyle().Foreground(errorColor)
@@ -90,7 +82,13 @@ func formatValue(text string, isLast bool) string {
 	return sb.String()
 }
 
-func formatErrorChain(err Error, isFirst bool) string {
+type unwrappableError interface {
+	error
+
+	Unwrap() error
+}
+
+func formatErrorChain(err unwrappableError, isFirst bool) string {
 	var sb strings.Builder
 
 	prefix := branch1
@@ -98,15 +96,16 @@ func formatErrorChain(err Error, isFirst bool) string {
 		prefix = message + "\n" + branch1
 	}
 
-	sb.WriteString(prefix + formatError(err.Msg()) + "\n")
+	sb.WriteString(prefix + formatError(err.Error()) + "\n")
 
-	keys := make([]string, 0, len(err.Metas()))
-	for key := range err.Metas() {
+	allMeta := GetMetas(err)
+	keys := make([]string, 0, len(allMeta))
+	for key := range allMeta {
 		keys = append(keys, key)
 	}
 	sort.Strings(keys)
 	for i, key := range keys {
-		value := err.Metas()[key]
+		value, _ := GetMeta(err, key)
 		connector := " " + branch1
 		isLast := i == len(keys)-1
 		if isLast {
@@ -116,9 +115,9 @@ func formatErrorChain(err Error, isFirst bool) string {
 	}
 
 	if unwrapped := err.Unwrap(); unwrapped != nil {
-		var next Error
+		var next unwrappableError
 		if errors.As(unwrapped, &next) {
-			sb.WriteString(formatErrorChain(next, false))
+			sb.WriteString(fmt.Sprintf("%+v", next))
 		} else {
 			sb.WriteString(branch3 + formatError(unwrapped.Error()))
 		}

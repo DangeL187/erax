@@ -12,26 +12,37 @@ It provides error chaining, custom metadata, and styled error traces using the [
 - 🔗 Error chaining with `Unwrap()`
 - 🏷️ Attach and retrieve key-value metadata
 - 🎨 Configurable colors for trace output
+- 🔄 Compatible with standard and third-party errors (e.g., pkg/errors)
 
 # Usage
 
 ```go
-func CreateUser() erax.Error {
-	err := errors.New("email is already in use")
-	return erax.New(err, "failed to create user").
-		WithMeta("code", "503").
-		WithMeta("info", "This is a really\nreally long information.").
-		WithMeta("user_error", "An account with this email already exists.")
+func CreateUser() error {
+    err := errors.New("email is already in use")
+
+    err = erax.Wrap(err, "failed to create user")
+    err = erax.WithMeta(err, "code", "503")
+    err = erax.WithMeta(err, "info", "This is a really\nreally long information.")
+    err = erax.WithMeta(err, "user_error", "An account with this email already exists.")
+    return err
 }
 
-func Register() erax.Error {
-	err := CreateUser()
-	return erax.New(err, "failed to register\nbecause of ducks!")
+func Register() error {
+    err := CreateUser()
+    return erax.Wrap(err, "failed to register\nbecause of ducks!")
 }
 
 ...
 
-erax.Trace(err)
+// Print trace
+fmt.Printf("%f\n", err)
+
+// Print trace without first line (▼ [ERROR TRACE]),
+// use it if the final error is not erax
+fmt.Printf("%+v\n", err)
+
+errCode, _ := erax.GetMeta(err, "code")
+errUserError, _ := erax.GetMeta(err, "user_error")
 ```
 **Output:**
 ```
@@ -53,23 +64,19 @@ Check out the full [example](https://github.com/DangeL187/erax/blob/main/example
 
 **Error Creation:**
 ```go
-New(err error, msg string) erax.Error            // Creates a new erax.Error from error
-NewFromString(err string, msg string) erax.Error // Creates a new erax.Error from string
+Wrap(err error, message string) error  // Wraps an existing error with an additional message
 ```
 
-**Error Methods:**
+**Error Functions:**
 ```go
-Msg() string                             // Retrieves Error's message
-Meta(key string) (string, Error)         // Retrieves metadata by key
-Metas() map[string]string                // Returns all metadata as a map
-
-WithMeta(key string, value string) Error // Attaches a key-value pair
-WithMetas(metas map[string]string) Error // Attaches multiple metadata entries
+WithMeta(err error, key, value string) error   // Adds a key-value pair to the error's metadata
+GetMeta(err error, key string) (string, bool)  // Retrieves a value from the error's metadata by key (recursively)
+GetMetas(err error) map[string]string          // Returns all metadata from the error as a map
 ```
 
 **Error Trace Output:**
 ```go
-Trace(err Error) string // Pretty-prints the full error chain and metadata.
+fmt.Printf("%f\n", err)  // Pretty-prints the full error chain and metadata
 
 // Customize CLI output colors:
 SetErrorColor(color lipgloss.Color)

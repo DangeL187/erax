@@ -17,37 +17,37 @@ func jsonPrint(data map[string]interface{}) {
 	fmt.Println(string(jsonBytes))
 }
 
-func log(text string) {
-	fmt.Println(text)
-}
-
 func CreateUser() error {
 	err := errors.New("email is already in use")
-	return erax.New(err, "failed to create user").
-		WithMeta("code", "503").
-		WithMeta("info", "This is a really\nreally long information.").
-		WithMeta("user_error", "An account with this email already exists.")
+
+	err = erax.Wrap(err, "failed to create user")
+	err = erax.WithMeta(err, "code", "503")
+	err = erax.WithMeta(err, "info", "This is a really\nreally long information.")
+	err = erax.WithMeta(err, "user_error", "An account with this email already exists.")
+	return err
 }
 
-func Register() erax.Error {
+func Register() error {
 	err := CreateUser()
-	return erax.New(err, "failed to register\nbecause of ducks!")
+	return erax.Wrap(err, "failed to register\nbecause of ducks!")
 }
 
 func main() {
 	err := Register()
-	if err != nil {
-		fmt.Println("Logs:")
-		log(erax.Trace(err))
-
-		fmt.Println()
-
-		fmt.Println("Response from server:")
-		errUserError, _ := err.Meta("user_error")
-		errCode, _ := err.Meta("code")
-		jsonPrint(map[string]interface{}{
-			"data":  errCode,
-			"error": errUserError,
-		})
+	if err == nil {
+		return
 	}
+
+	fmt.Println("Logs:")
+	fmt.Printf("%f\n", err)
+
+	fmt.Println()
+
+	fmt.Println("Response from server:")
+	errCode, _ := erax.GetMeta(err, "code")
+	errUserError, _ := erax.GetMeta(err, "user_error")
+	jsonPrint(map[string]interface{}{
+		"code":       errCode,
+		"user_error": errUserError,
+	})
 }
