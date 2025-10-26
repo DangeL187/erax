@@ -10,7 +10,7 @@ type Error interface {
 	Unwrap() error
 
 	Msg() string
-	Meta(key string) (string, Error)
+	Meta(key string) (string, error)
 	Metas() map[string]string
 
 	WithMeta(key string, value string) Error
@@ -35,7 +35,7 @@ func (e *ErrorType) Msg() string {
 	return e.msg
 }
 
-func (e *ErrorType) Meta(key string) (string, Error) {
+func (e *ErrorType) Meta(key string) (string, error) {
 	if e.Metas() != nil && len(e.Metas()) > 0 {
 		if val, ok := e.meta[key]; ok {
 			return val, nil
@@ -45,7 +45,7 @@ func (e *ErrorType) Meta(key string) (string, Error) {
 	var current Error
 	ok := errors.As(e.err, &current)
 	if !ok {
-		return "", NewFromString("key not found in error chain", "")
+		return "", errors.New("key not found in error chain")
 	}
 	return current.Meta(key)
 }

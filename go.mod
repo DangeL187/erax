@@ -1,4 +1,4 @@
-module github.com/DangeL187/erax/erax
+module github.com/DangeL187/erax
 
 go 1.24
 

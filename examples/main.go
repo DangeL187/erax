@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/DangeL187/erax/erax"
+	"github.com/DangeL187/erax"
 )
 
 func jsonPrint(data map[string]interface{}) {
@@ -21,7 +21,7 @@ func log(text string) {
 	fmt.Println(text)
 }
 
-func CreateUser() erax.Error {
+func CreateUser() error {
 	err := errors.New("email is already in use")
 	return erax.New(err, "failed to create user").
 		WithMeta("code", "503").

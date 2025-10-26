@@ -55,7 +55,7 @@ func formatError(text string) string {
 	return output
 }
 
-func formatValue(text string) string {
+func formatValue(text string, isLast bool) string {
 	lines := strings.Split(text, "\n")
 	var sb strings.Builder
 
@@ -66,7 +66,13 @@ func formatValue(text string) string {
 	for i, line := range lines {
 		var prefix string
 		if len(lines) > 1 {
-			prefix = branch2 + " " + branch2 + "  "
+			prefix = branch2 + " "
+			if !isLast {
+				prefix += branch2
+			} else {
+				prefix += "   "
+			}
+			prefix += "  "
 		} else if i != 0 {
 			prefix = branch2 + "      "
 		} else {
@@ -102,10 +108,11 @@ func formatErrorChain(err Error, isFirst bool) string {
 	for i, key := range keys {
 		value := err.Metas()[key]
 		connector := " " + branch1
-		if i == len(keys)-1 {
+		isLast := i == len(keys)-1
+		if isLast {
 			connector = " " + branch3
 		}
-		sb.WriteString(fmt.Sprintf("%s%s%s: %v\n", branch2, connector, keyText.Render(key), formatValue(value)))
+		sb.WriteString(fmt.Sprintf("%s%s%s: %v\n", branch2, connector, keyText.Render(key), formatValue(value, isLast)))
 	}
 
 	if unwrapped := err.Unwrap(); unwrapped != nil {
