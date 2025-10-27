@@ -28,7 +28,7 @@ func (e *errorType) Format(s fmt.State, verb rune) {
 			if msg != "" {
 				_, _ = io.WriteString(s, formatErrorChain(e, false))
 			} else if unwrapped != nil {
-				_, _ = fmt.Fprintf(s, "%+v", unwrapped)
+				_, _ = io.WriteString(s, formatAlienError(fmt.Sprintf("%+v", unwrapped), true))
 			}
 			return
 		}

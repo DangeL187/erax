@@ -32,6 +32,31 @@ func SetValueColor(color lipgloss.Color) {
 	valueText = lipgloss.NewStyle().Foreground(valueColor)
 }
 
+func formatAlienError(text string, isLast bool) string {
+	lines := strings.Split(text, "\n")
+	output := ""
+	for lineIdx, line := range lines {
+		if lineIdx == 0 {
+			if isLast {
+				output += branch3
+			} else {
+				output += branch1
+			}
+		} else {
+			if isLast {
+				output += "    "
+			} else {
+				output += branch2 + " "
+			}
+		}
+		output += errorText.Render(line)
+		if lineIdx < len(lines)-1 {
+			output += "\n"
+		}
+	}
+	return output
+}
+
 func formatError(text string) string {
 	lines := strings.Split(text, "\n")
 	output := ""
