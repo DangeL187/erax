@@ -3,7 +3,7 @@ module examples
 go 1.24
 
 require (
-	github.com/DangeL187/erax v0.2.1
+	github.com/DangeL187/erax v0.2.2
 )
 
 require (

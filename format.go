@@ -32,29 +32,104 @@ func SetValueColor(color lipgloss.Color) {
 	valueText = lipgloss.NewStyle().Foreground(valueColor)
 }
 
-func formatAlienError(text string, isLast bool) string {
+func formatValue(text string, isLastPair, isLast bool) string {
 	lines := strings.Split(text, "\n")
-	output := ""
+	var sb strings.Builder
+
+	if len(lines) > 1 {
+		sb.WriteString("\n")
+	}
+
+	for i, line := range lines {
+		var prefix string
+		if len(lines) > 1 {
+			prefix = "   "
+			if !isLast {
+				prefix = branch2
+			}
+			prefix += " "
+
+			if isLastPair {
+				prefix += "   "
+			} else {
+				prefix += branch2
+			}
+			prefix += "  "
+		} else {
+			prefix = ""
+		}
+
+		sb.WriteString(prefix)
+		sb.WriteString(valueText.Render(line))
+
+		if i < len(lines)-1 {
+			sb.WriteString("\n")
+		}
+	}
+
+	return sb.String()
+}
+
+func formatMeta(meta map[string]string, isLast bool) string {
+	sb := strings.Builder{}
+
+	keys := make([]string, 0, len(meta))
+	for key := range meta {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	for i, key := range keys {
+		value := meta[key]
+		isLastPair := i == len(keys)-1
+
+		connector1 := branch2
+		if isLast {
+			connector1 = "   "
+		}
+
+		connector2 := " " + branch1
+		if isLastPair {
+			connector2 = " " + branch3
+		}
+
+		ending := "\n"
+		if isLast && isLastPair {
+			ending = ""
+		}
+
+		sb.WriteString(fmt.Sprintf("%s%s%s: %v%s", connector1, connector2, keyText.Render(key), formatValue(value, isLastPair, isLast), ending))
+	}
+
+	return sb.String()
+}
+
+func formatAlienError(err unwrappableError, isLast bool) string {
+	sb := strings.Builder{}
+
+	lines := strings.Split(fmt.Sprintf("%+v", err.Unwrap()), "\n")
 	for lineIdx, line := range lines {
 		if lineIdx == 0 {
 			if isLast {
-				output += branch3
+				sb.WriteString(branch3)
 			} else {
-				output += branch1
+				sb.WriteString(branch1)
 			}
 		} else {
 			if isLast {
-				output += "    "
+				sb.WriteString("    ")
 			} else {
-				output += branch2 + " "
+				sb.WriteString(branch2 + " ")
 			}
 		}
-		output += errorText.Render(line)
+		sb.WriteString(errorText.Render(line))
 		if lineIdx < len(lines)-1 {
-			output += "\n"
+			sb.WriteString("\n")
 		}
 	}
-	return output
+
+	sb.WriteString("\n" + formatMeta(GetMetas(err), isLast))
+
+	return sb.String()
 }
 
 func formatError(text string) string {
@@ -70,41 +145,6 @@ func formatError(text string) string {
 		}
 	}
 	return output
-}
-
-func formatValue(text string, isLast bool) string {
-	lines := strings.Split(text, "\n")
-	var sb strings.Builder
-
-	if len(lines) > 1 {
-		sb.WriteString("\n")
-	}
-
-	for i, line := range lines {
-		var prefix string
-		if len(lines) > 1 {
-			prefix = branch2 + " "
-			if !isLast {
-				prefix += branch2
-			} else {
-				prefix += "   "
-			}
-			prefix += "  "
-		} else if i != 0 {
-			prefix = branch2 + "      "
-		} else {
-			prefix = ""
-		}
-
-		sb.WriteString(prefix)
-		sb.WriteString(valueText.Render(line))
-
-		if i < len(lines)-1 {
-			sb.WriteString("\n")
-		}
-	}
-
-	return sb.String()
 }
 
 type unwrappableError interface {
@@ -123,24 +163,10 @@ func formatErrorChain(err unwrappableError, isFirst bool) string {
 
 	sb.WriteString(prefix + formatError(err.Error()) + "\n")
 
-	allMeta := GetMetas(err)
-	keys := make([]string, 0, len(allMeta))
-	for key := range allMeta {
-		keys = append(keys, key)
-	}
-	sort.Strings(keys)
-	for i, key := range keys {
-		value, _ := GetMeta(err, key)
-		connector := " " + branch1
-		isLast := i == len(keys)-1
-		if isLast {
-			connector = " " + branch3
-		}
-		sb.WriteString(fmt.Sprintf("%s%s%s: %v\n", branch2, connector, keyText.Render(key), formatValue(value, isLast)))
-	}
+	sb.WriteString(formatMeta(GetMetas(err), false))
 
 	if unwrapped := err.Unwrap(); unwrapped != nil {
-		var next unwrappableError
+		var next *errorType
 		if errors.As(unwrapped, &next) {
 			sb.WriteString(fmt.Sprintf("%+v", next))
 		} else {
