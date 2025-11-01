@@ -51,6 +51,17 @@ func Wrap(err error, message string) error {
 	}
 }
 
+func WrapWithError(err, newErr error, message string) error {
+	if err == nil {
+		return newErr
+	}
+
+	return &errorType{
+		err: errors.Join(newErr, err),
+		msg: message,
+	}
+}
+
 func WithMeta(err error, key, value string) error {
 	if err == nil {
 		return nil

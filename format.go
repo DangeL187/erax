@@ -166,11 +166,29 @@ func formatErrorChain(err unwrappableError, isFirst bool) string {
 	sb.WriteString(formatMeta(GetMetas(err), false))
 
 	if unwrapped := err.Unwrap(); unwrapped != nil {
-		var next *errorType
-		if errors.As(unwrapped, &next) {
-			sb.WriteString(fmt.Sprintf("%+v", next))
+		var list []error
+		if uw, ok := unwrapped.(interface{ Unwrap() []error }); ok {
+			list = uw.Unwrap()
 		} else {
-			sb.WriteString(branch3 + formatError(unwrapped.Error()))
+			list = []error{unwrapped}
+		}
+
+		prefix := branch1
+
+		for i, ue := range list {
+			if i > 0 {
+				sb.WriteString("\n")
+			}
+
+			var next *errorType
+			if errors.As(ue, &next) {
+				sb.WriteString(fmt.Sprintf("%+v", next))
+			} else {
+				if i == len(list)-1 {
+					prefix = branch3
+				}
+				sb.WriteString(prefix + formatError(ue.Error()))
+			}
 		}
 	}
 
