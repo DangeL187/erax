@@ -13,6 +13,7 @@ It provides error chaining, custom metadata, and styled error traces using the [
 - 🏷️ Attach and retrieve key-value metadata
 - 🎨 Configurable colors for trace output
 - 🔄 Compatible with standard and third-party errors (e.g., pkg/errors)
+- 📄 **JSON compatibility (SOON)**
 
 # Usage
 
