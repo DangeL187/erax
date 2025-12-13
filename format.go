@@ -1,6 +1,7 @@
 package erax
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"sort"
@@ -30,6 +31,175 @@ func SetNormalColor(color lipgloss.Color) {
 func SetValueColor(color lipgloss.Color) {
 	valueColor = color
 	valueText = lipgloss.NewStyle().Foreground(valueColor)
+}
+
+func Format(err error) string {
+	return fmt.Sprintf("%f", err)
+}
+
+func FormatV(err error) string {
+	return fmt.Sprintf("%+v", err)
+}
+
+func FormatToJSONString(err error) (string, error) {
+	if err == nil {
+		return "", nil
+	}
+
+	data := FormatToJSONMap(err)
+
+	jsonBytes, e := json.Marshal(data)
+	if e != nil {
+		return "", e
+	}
+
+	return string(jsonBytes), nil
+}
+
+type unwrappableError interface {
+	error
+
+	Unwrap() error
+}
+
+func FormatToJSONMap(err error) map[string]any {
+	if err == nil {
+		return nil
+	}
+
+	var next unwrappableError
+	if errors.As(err, &next) {
+		return errorToMap(next)
+	}
+
+	return map[string]any{
+		"message": err.Error(),
+	}
+}
+
+func FromJSONMap(m map[string]any) error {
+	if m == nil || len(m) == 0 {
+		return nil
+	}
+
+	return mapToError(m)
+}
+
+func errorToMap(err unwrappableError) map[string]any {
+	m := map[string]any{}
+
+	m["message"] = err.Error()
+
+	meta := GetMetas(err)
+	if len(meta) != 0 {
+		m["meta"] = meta
+	}
+
+	unwrapped := err.Unwrap()
+	if unwrapped == nil {
+		return m
+	}
+
+	var list []error
+	if uw, ok := unwrapped.(interface{ Unwrap() []error }); ok {
+		list = uw.Unwrap()
+	} else {
+		list = []error{unwrapped}
+	}
+
+	var cause []map[string]any
+	for _, ue := range list {
+		cause = append(cause, FormatToJSONMap(ue))
+	}
+
+	if len(cause) == 1 {
+		m["cause"] = cause[0]
+	} else if len(cause) > 1 {
+		m["cause"] = cause
+	}
+
+	return m
+}
+
+func mapToError(m map[string]any) error {
+	msg, msgOk := m["message"].(string)
+	if !msgOk {
+		return nil
+	}
+
+	meta, metaOk := m["meta"].(map[string]string)
+	cause, causeOk := m["cause"]
+
+	if !metaOk && !causeOk {
+		return errors.New(msg)
+	}
+
+	err := &errorType{
+		msg: msg,
+	}
+
+	if metaOk {
+		err.meta = meta
+	}
+
+	if causeOk {
+		if value, ok := cause.(map[string]any); ok {
+			err.err = mapToError(value)
+		} else if value, ok := cause.([]map[string]any); ok {
+			var errs []error
+			for _, c := range value {
+				errs = append(errs, mapToError(c))
+			}
+			err.err = errors.Join(errs...)
+		}
+	}
+
+	return err
+}
+
+func formatErrorChain(err unwrappableError, isFirst bool) string {
+	var sb strings.Builder
+
+	prefix := branch1
+	if isFirst {
+		prefix = message + "\n" + branch1
+	}
+
+	sb.WriteString(prefix + formatError(err.Error()) + "\n")
+
+	sb.WriteString(formatMeta(GetMetas(err), false))
+
+	unwrapped := err.Unwrap()
+	if unwrapped == nil {
+		return sb.String()
+	}
+
+	var list []error
+	if uw, ok := unwrapped.(interface{ Unwrap() []error }); ok {
+		list = uw.Unwrap()
+	} else {
+		list = []error{unwrapped}
+	}
+
+	prefix = branch1
+
+	for i, ue := range list {
+		if i > 0 {
+			sb.WriteString("\n")
+		}
+
+		var next *errorType
+		if errors.As(ue, &next) {
+			sb.WriteString(fmt.Sprintf("%+v", next))
+		} else {
+			if i == len(list)-1 {
+				prefix = branch3
+			}
+			sb.WriteString(prefix + formatError(ue.Error()))
+		}
+	}
+
+	return sb.String()
 }
 
 func formatValue(text string, isLastPair, isLast bool) string {
@@ -145,54 +315,6 @@ func formatError(text string) string {
 		}
 	}
 	return output
-}
-
-type unwrappableError interface {
-	error
-
-	Unwrap() error
-}
-
-func formatErrorChain(err unwrappableError, isFirst bool) string {
-	var sb strings.Builder
-
-	prefix := branch1
-	if isFirst {
-		prefix = message + "\n" + branch1
-	}
-
-	sb.WriteString(prefix + formatError(err.Error()) + "\n")
-
-	sb.WriteString(formatMeta(GetMetas(err), false))
-
-	if unwrapped := err.Unwrap(); unwrapped != nil {
-		var list []error
-		if uw, ok := unwrapped.(interface{ Unwrap() []error }); ok {
-			list = uw.Unwrap()
-		} else {
-			list = []error{unwrapped}
-		}
-
-		prefix := branch1
-
-		for i, ue := range list {
-			if i > 0 {
-				sb.WriteString("\n")
-			}
-
-			var next *errorType
-			if errors.As(ue, &next) {
-				sb.WriteString(fmt.Sprintf("%+v", next))
-			} else {
-				if i == len(list)-1 {
-					prefix = branch3
-				}
-				sb.WriteString(prefix + formatError(ue.Error()))
-			}
-		}
-	}
-
-	return sb.String()
 }
 
 var (
