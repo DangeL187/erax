@@ -41,19 +41,16 @@ func FormatV(err error) string {
 	return fmt.Sprintf("%+v", err)
 }
 
-func FormatToJSONString(err error) (string, error) {
+func FormatToJSONString(err error) string {
 	if err == nil {
-		return "", nil
+		return ""
 	}
 
 	data := FormatToJSONMap(err)
 
-	jsonBytes, e := json.Marshal(data)
-	if e != nil {
-		return "", e
-	}
+	jsonBytes, _ := json.Marshal(data)
 
-	return string(jsonBytes), nil
+	return string(jsonBytes)
 }
 
 type unwrappableError interface {
