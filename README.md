@@ -7,6 +7,17 @@ the [lipgloss](https://github.com/charmbracelet/lipgloss) library.
 
 ![image](https://github.com/DangeL187/erax/blob/main/img/demo.png)
 
+# 🚀 v0.4.0 is Just Around the Corner!
+
+Brace yourselves. The upcoming **v0.4.0** release is going to be massive. 
+
+### 🔥 What's Cooking:
+- **Insane performance gains** (benchmarks dropping very soon, stay tuned!).
+- **Refactored API**: `WrapWithError` renamed to `WrapWithErrors` with multi-error support.
+- **Nested errors**: Formatting for nested error structures.
+
+*We are polishing the last bits. Get ready for a game-changer!*
+
 # Features
 
 - 🌈 Styled and readable error trace output for CLI
