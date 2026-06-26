@@ -7,12 +7,23 @@ import (
 )
 
 type errorType struct {
-	errs []error
-	meta []MetaField
-	msg  string
+	cause error
+	errs  []error
+	meta  []MetaField
+	msg   string
 }
 
-func (e *errorType) Unwrap() []error { return e.errs }
+func (e *errorType) Unwrap() []error {
+	if len(e.errs) > 0 {
+		return e.errs
+	}
+
+	if e.cause != nil {
+		return []error{e.cause}
+	}
+
+	return nil
+}
 
 func (e *errorType) Error() string { return e.msg }
 
@@ -58,37 +69,43 @@ func Wrap(err error, message string) error {
 	}
 
 	return &errorType{
-		errs: []error{err},
-		msg:  message,
+		cause: err,
+		msg:   message,
 	}
 }
 
 func WrapWithErrors(err error, message string, newErrors ...error) error {
-	isNewErrorsValid := len(newErrors) > 0
+	newErrorsLen := len(newErrors)
 
-	if err == nil && !isNewErrorsValid {
+	if err == nil && newErrorsLen == 0 {
 		return nil
 	}
 
+	if newErrorsLen == 0 {
+		return &errorType{
+			cause: err,
+			msg:   message,
+		}
+	}
+
 	if err == nil {
+		if newErrorsLen == 1 {
+			return &errorType{cause: newErrors[0], msg: message}
+		}
+		return &errorType{errs: newErrors, msg: message}
+	}
+
+	if newErrorsLen == 1 {
 		return &errorType{
-			errs: newErrors,
-			msg:  message,
+			cause: err,
+			errs:  []error{newErrors[0]},
+			msg:   message,
 		}
 	}
 
-	if !isNewErrorsValid {
-		return &errorType{
-			errs: []error{err},
-			msg:  message,
-		}
-	}
-
-	res := make([]error, len(newErrors)+1)
-	for i, e := range newErrors {
-		res[i] = e
-	}
-	res[len(res)-1] = err
+	res := make([]error, newErrorsLen+1)
+	copy(res, newErrors)
+	res[newErrorsLen] = err
 
 	return &errorType{
 		errs: res,
@@ -131,9 +148,9 @@ func WithMeta(err error, message string, fields ...MetaField) error {
 	}
 
 	return &errorType{
-		errs: []error{err},
-		msg:  message,
-		meta: fields,
+		cause: err,
+		msg:   message,
+		meta:  fields,
 	}
 }
 
@@ -149,9 +166,9 @@ func AddMeta(err error, message, key, value string) error {
 	}
 
 	return &errorType{
-		errs: []error{err},
-		msg:  message,
-		meta: []MetaField{{Key: key, Value: value}},
+		cause: err,
+		msg:   message,
+		meta:  []MetaField{{Key: key, Value: value}},
 	}
 }
 

@@ -39,12 +39,6 @@ func FormatV(err error) string {
 	return fmt.Sprintf("%+v", err)
 }
 
-type unwrappableError interface {
-	error
-
-	Unwrap() error
-}
-
 func errorToMap(err *errorType) map[string]any {
 	m := map[string]any{
 		"message": err.msg,
@@ -54,16 +48,27 @@ func errorToMap(err *errorType) map[string]any {
 		m["meta"] = err.meta
 	}
 
-	if len(err.errs) == 0 {
+	hasCause := err.cause != nil
+	hasErrs := len(err.errs) > 0
+
+	if !hasCause && !hasErrs {
 		return m
 	}
 
-	if len(err.errs) == 1 {
-		m["cause"] = FormatToJSONMap(err.errs[0])
+	if hasCause && !hasErrs {
+		m["cause"] = FormatToJSONMap(err.cause)
 	} else {
-		causeSlice := make([]map[string]any, len(err.errs))
-		for i, ue := range err.errs {
-			causeSlice[i] = FormatToJSONMap(ue)
+		totalLen := len(err.errs)
+		if hasCause {
+			totalLen++
+		}
+
+		causeSlice := make([]map[string]any, 0, totalLen)
+		if hasCause {
+			causeSlice = append(causeSlice, FormatToJSONMap(err.cause))
+		}
+		for _, ue := range err.errs {
+			causeSlice = append(causeSlice, FormatToJSONMap(ue))
 		}
 		m["cause"] = causeSlice
 	}
@@ -80,19 +85,22 @@ func mapToError(m map[string]any) error {
 	meta, metaOk := m["meta"].([]MetaField)
 	cause, causeOk := m["cause"]
 
-	if !metaOk && !causeOk {
+	if (meta == nil || !metaOk) && !causeOk {
 		return errors.New(msg)
 	}
 
 	err := &errorType{
-		msg:  msg,
-		meta: meta,
+		msg: msg,
+	}
+
+	if meta != nil && metaOk {
+		err.meta = meta
 	}
 
 	if causeOk {
 		if value, ok := cause.(map[string]any); ok {
 			if childErr := mapToError(value); childErr != nil {
-				err.errs = []error{childErr}
+				err.cause = childErr
 			}
 		} else if value, ok := cause.([]map[string]any); ok {
 			err.errs = make([]error, len(value))
@@ -113,19 +121,38 @@ func formatErrorChain(err *errorType, isFirst bool, nestingLevel int) string {
 		prefix = message + "\n" + branch1
 	}
 
-	sb.WriteString(prefix + formatError(err.Error()) + "\n")
+	sb.WriteString(prefix)
+	writeFormattedError(&sb, err.Error())
+	sb.WriteByte('\n')
+
 	sb.WriteString(formatMeta(GetMetas(err), false))
 
-	if len(err.errs) == 0 {
+	hasCause := err.cause != nil
+	hasErrs := len(err.errs) > 0
+
+	if !hasCause && !hasErrs {
 		return sb.String()
 	}
 
-	prefix = branch1
-
 	nestingLevel++
 
+	if hasCause {
+		next, isErax := asErax(err.cause)
+		if isErax {
+			sb.WriteString(formatDefault(next, nestingLevel))
+		} else {
+			if !hasErrs {
+				prefix = branch3
+			} else {
+				prefix = branch1
+			}
+			sb.WriteString(prefix)
+			writeFormattedError(&sb, err.cause.Error())
+		}
+	}
+
 	for i, ue := range err.errs {
-		if i > 0 {
+		if i > 0 || hasCause {
 			sb.WriteString("\n")
 		}
 
@@ -135,8 +162,11 @@ func formatErrorChain(err *errorType, isFirst bool, nestingLevel int) string {
 		} else {
 			if i == len(err.errs)-1 {
 				prefix = branch3
+			} else {
+				prefix = branch1
 			}
-			sb.WriteString(prefix + formatError(ue.Error()))
+			sb.WriteString(prefix)
+			writeFormattedError(&sb, ue.Error())
 		}
 	}
 
@@ -144,36 +174,34 @@ func formatErrorChain(err *errorType, isFirst bool, nestingLevel int) string {
 }
 
 func formatValue(text string, isLastPair, isLast bool) string {
-	lines := strings.Split(text, "\n")
-	var sb strings.Builder
-
-	if len(lines) > 1 {
-		sb.WriteString("\n")
+	if !strings.Contains(text, "\n") {
+		return valueText.Render(text)
 	}
+
+	var sb strings.Builder
+	sb.WriteByte('\n')
+	lines := strings.Split(text, "\n")
+	linesLen := len(lines)
 
 	for i, line := range lines {
 		var prefix string
-		if len(lines) > 1 {
-			prefix = "   "
-			if !isLast {
-				prefix = branch2
-			}
-			prefix += " "
-
-			if isLastPair {
-				prefix += "   "
-			} else {
-				prefix += branch2
-			}
-			prefix += "  "
-		} else {
-			prefix = ""
+		prefix = "   "
+		if !isLast {
+			prefix = branch2
 		}
+		prefix += " "
+
+		if isLastPair {
+			prefix += "   "
+		} else {
+			prefix += branch2
+		}
+		prefix += "  "
 
 		sb.WriteString(prefix)
 		sb.WriteString(valueText.Render(line))
 
-		if i < len(lines)-1 {
+		if i < linesLen-1 {
 			sb.WriteString("\n")
 		}
 	}
@@ -212,43 +240,52 @@ func formatMeta(meta []MetaField, isLast bool) string {
 			ending = ""
 		}
 
-		sb.WriteString(fmt.Sprintf("%s%s%s: %v%s",
-			connector1,
-			connector2,
-			keyText.Render(field.Key),
-			formatValue(field.Value, isLastPair, isLast),
-			ending,
-		))
+		sb.WriteString(connector1)
+		sb.WriteString(connector2)
+		sb.WriteString(keyText.Render(field.Key))
+		sb.WriteString(": ")
+		sb.WriteString(formatValue(field.Value, isLastPair, isLast))
+		sb.WriteString(ending)
 	}
 
 	return sb.String()
 }
 
 func formatAlienError(err *errorType, isLast bool) string {
-	sb := strings.Builder{}
+	var sb strings.Builder
 
-	for i, cause := range err.errs {
+	var targets []error
+	if err.cause != nil {
+		targets = append(targets, err.cause)
+	}
+	targets = append(targets, err.errs...)
+	targetsLen := len(targets)
+
+	for i, cause := range targets {
 		lines := strings.Split(fmt.Sprintf("%+v", cause), "\n")
+		linesLen := len(lines)
+		isCurrentLast := isLast && i == targetsLen-1
+
 		for lineIdx, line := range lines {
 			if lineIdx == 0 {
-				if isLast && i == len(err.errs)-1 {
+				if isCurrentLast {
 					sb.WriteString(branch3)
 				} else {
 					sb.WriteString(branch1)
 				}
 			} else {
-				if isLast && i == len(err.errs)-1 {
+				if isCurrentLast {
 					sb.WriteString("    ")
 				} else {
 					sb.WriteString(branch2 + " ")
 				}
 			}
 			sb.WriteString(errorText.Render(line))
-			if lineIdx < len(lines)-1 {
+			if lineIdx < linesLen-1 {
 				sb.WriteString("\n")
 			}
 		}
-		if i < len(err.errs)-1 {
+		if i < targetsLen-1 {
 			sb.WriteString("\n")
 		}
 	}
@@ -261,19 +298,24 @@ func formatAlienError(err *errorType, isLast bool) string {
 	return sb.String()
 }
 
-func formatError(text string) string {
+func writeFormattedError(sb *strings.Builder, text string) {
+	if !strings.Contains(text, "\n") {
+		sb.WriteString(errorText.Render(text))
+		return
+	}
+
 	lines := strings.Split(text, "\n")
-	output := ""
+	linesLen := len(lines)
 	for lineIdx, line := range lines {
 		if lineIdx != 0 {
-			output += branch2 + " "
+			sb.WriteString(branch2)
+			sb.WriteByte(' ')
 		}
-		output += errorText.Render(line)
-		if lineIdx < len(lines)-1 {
-			output += "\n"
+		sb.WriteString(errorText.Render(line))
+		if lineIdx < linesLen-1 {
+			sb.WriteByte('\n')
 		}
 	}
-	return output
 }
 
 var (
