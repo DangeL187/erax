@@ -7,28 +7,24 @@ import (
 )
 
 type errorType struct {
-	err  error
-	meta map[string]string
+	errs []error
+	meta []MetaField
 	msg  string
 }
 
-func (e *errorType) Unwrap() error { return e.err }
+func (e *errorType) Unwrap() []error { return e.errs }
 
 func (e *errorType) Error() string { return e.msg }
 
 func (e *errorType) Format(s fmt.State, verb rune) {
 	switch verb {
 	case 'f':
-		_, _ = io.WriteString(s, formatErrorChain(e, true))
+		_, _ = io.WriteString(s, formatErrorChain(e, true, 0))
 	case 'v':
 		if s.Flag('+') {
-			unwrapped := e.Unwrap()
-			msg := e.Error()
-
-			if msg != "" {
-				_, _ = io.WriteString(s, formatErrorChain(e, false))
-			} else if unwrapped != nil {
-				_, _ = io.WriteString(s, formatAlienError(e, true))
+			res := formatDefault(e, 0)
+			if res != "" {
+				_, _ = io.WriteString(s, res)
 			}
 			return
 		}
@@ -40,80 +36,214 @@ func (e *errorType) Format(s fmt.State, verb rune) {
 	}
 }
 
+func formatDefault(e *errorType, nestingLevel int) string {
+	msg := e.Error()
+
+	if msg != "" {
+		return formatErrorChain(e, false, nestingLevel)
+	} else if len(e.errs) > 0 {
+		return formatAlienError(e, true)
+	}
+
+	return ""
+}
+
+func New(message string) error {
+	return errors.New(message)
+}
+
 func Wrap(err error, message string) error {
 	if err == nil {
 		return nil
 	}
 
 	return &errorType{
-		err: err,
-		msg: message,
+		errs: []error{err},
+		msg:  message,
 	}
 }
 
-func WrapWithError(err, newErr error, message string) error {
-	if err == nil {
-		return newErr
+func WrapWithErrors(err error, message string, newErrors ...error) error {
+	isNewErrorsValid := len(newErrors) > 0
+
+	if err == nil && !isNewErrorsValid {
+		return nil
 	}
+
+	if err == nil {
+		return &errorType{
+			errs: newErrors,
+			msg:  message,
+		}
+	}
+
+	if !isNewErrorsValid {
+		return &errorType{
+			errs: []error{err},
+			msg:  message,
+		}
+	}
+
+	res := make([]error, len(newErrors)+1)
+	for i, e := range newErrors {
+		res[i] = e
+	}
+	res[len(res)-1] = err
 
 	return &errorType{
-		err: errors.Join(newErr, err),
-		msg: message,
+		errs: res,
+		msg:  message,
 	}
 }
 
-func WithMeta(err error, key, value string) error {
+type MetaField struct {
+	Key, Value string
+}
+
+func F(k, v string) MetaField {
+	return MetaField{Key: k, Value: v}
+}
+
+func WithMeta(err error, message string, fields ...MetaField) error {
 	if err == nil {
 		return nil
 	}
 
-	var e *errorType
-	if errors.As(err, &e) {
-		if e.meta == nil {
-			e.meta = make(map[string]string)
+	if len(fields) == 0 {
+		return err
+	}
+
+	e, isErax := asErax(err)
+	if isErax {
+		oldLen := len(e.meta)
+		newLen := oldLen + len(fields)
+
+		if newLen > cap(e.meta) {
+			newMeta := make([]MetaField, newLen)
+			copy(newMeta, e.meta)
+			copy(newMeta[oldLen:], fields)
+			e.meta = newMeta
+		} else {
+			e.meta = append(e.meta, fields...)
 		}
-		e.meta[key] = value
+
 		return err
 	}
 
 	return &errorType{
-		err: err,
-		msg: "",
-		meta: map[string]string{
-			key: value,
-		},
+		errs: []error{err},
+		msg:  message,
+		meta: fields,
+	}
+}
+
+func AddMeta(err error, message, key, value string) error {
+	if err == nil {
+		return nil
+	}
+
+	e, isErax := asErax(err)
+	if isErax {
+		e.meta = append(e.meta, MetaField{Key: key, Value: value})
+		return err
+	}
+
+	return &errorType{
+		errs: []error{err},
+		msg:  message,
+		meta: []MetaField{{Key: key, Value: value}},
 	}
 }
 
 func GetMeta(err error, key string) (string, bool) {
-	for err != nil {
-		var e *errorType
-		if errors.As(err, &e) {
-			if e.meta != nil {
-				if v, ok := e.meta[key]; ok {
-					return v, true
+	if err == nil {
+		return "", false
+	}
+
+	stack := [8]error{err}
+	slice := stack[:1]
+
+	for len(slice) > 0 {
+		current := slice[len(slice)-1]
+		slice = slice[:len(slice)-1]
+
+		if current == nil {
+			continue
+		}
+
+		if e, ok := current.(*errorType); ok {
+			for i := len(e.meta) - 1; i >= 0; i-- {
+				if e.meta[i].Key == key {
+					return e.meta[i].Value, true
 				}
 			}
+			if len(e.errs) > 0 {
+				slice = append(slice, e.errs...)
+			}
+			continue
 		}
-		err = errors.Unwrap(err)
+
+		if w, ok := current.(interface{ Unwrap() error }); ok {
+			if next := w.Unwrap(); next != nil {
+				slice = append(slice, next)
+			}
+		} else if w, ok := current.(interface{ Unwrap() []error }); ok {
+			if nextS := w.Unwrap(); len(nextS) > 0 {
+				slice = append(slice, nextS...)
+			}
+		}
 	}
+
 	return "", false
 }
 
-func GetMetas(err error) map[string]string {
-	var e *errorType
-	if !errors.As(err, &e) {
-		return map[string]string{}
+func GetMetas(err error) []MetaField {
+	e, isErax := asErax(err)
+	if !isErax {
+		return []MetaField{}
 	}
 
-	if e.meta == nil {
-		return map[string]string{}
+	return e.meta
+}
+
+func IsErax(err error) bool {
+	_, ok := asErax(err)
+	return ok
+}
+
+func asErax(err error) (*errorType, bool) {
+	if err == nil {
+		return nil, false
 	}
 
-	out := make(map[string]string, len(e.meta))
-	for k, v := range e.meta {
-		out[k] = v
+	stack := [2]error{err}
+	slice := stack[:1]
+
+	for len(slice) > 0 {
+		current := slice[len(slice)-1]
+		slice = slice[:len(slice)-1]
+
+		if current == nil {
+			continue
+		}
+
+		if e, ok := current.(*errorType); ok {
+			return e, ok
+		}
+
+		if w, ok := current.(interface{ Unwrap() []error }); ok {
+			if nextS := w.Unwrap(); len(nextS) > 0 {
+				slice = append(slice, nextS...)
+			}
+			continue
+		}
+
+		if w, ok := current.(interface{ Unwrap() error }); ok {
+			if next := w.Unwrap(); next != nil {
+				slice = append(slice, next)
+			}
+		}
 	}
 
-	return out
+	return nil, false
 }
