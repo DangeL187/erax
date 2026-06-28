@@ -100,8 +100,8 @@ FormatToJSONMap(err error) map[string]any     // Formats error to JSON map
 FromJSONMap(m map[string]any) error           // Creates an error from JSON map
 
 // Customize CLI output colors:
+SetBranchColor(color lipgloss.Color)
 SetErrorColor(color lipgloss.Color)
 SetKeyColor(color lipgloss.Color)
-SetNormalColor(color lipgloss.Color)
 SetValueColor(color lipgloss.Color)
 ```
