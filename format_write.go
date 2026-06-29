@@ -111,50 +111,13 @@ func writeValue(sb *strings.Builder, text string, isLastPair, isLast, isNested b
 	}
 }
 
-func writeAlienErrorLines(sb *strings.Builder, err error, isLast bool) {
-	text := FormatV(err)
-	start := 0
-	textLen := len(text)
-	lineIdx := 0
-
-	for start < textLen {
-		idx := indexByte(text[start:], '\n')
-		var line string
-		if idx == -1 {
-			line = text[start:]
-			start = textLen
-		} else {
-			line = text[start : start+idx]
-			start += idx + 1
-		}
-
-		if lineIdx > 0 {
-			sb.WriteByte('\n')
-		}
-
-		if lineIdx == 0 {
-			sb.WriteByte(' ')
-			if isLast {
-				sb.WriteString(branchEnd)
-			} else {
-				sb.WriteString(branchNext)
-			}
-		} else {
-			if isLast {
-				sb.WriteString("    ")
-			} else {
-				sb.WriteString(branchMid)
-				sb.WriteString("  ")
-			}
-		}
-		sb.WriteString(errorText.Render(line))
-		lineIdx++
-	}
-}
-
-func writeFormattedError(sb *strings.Builder, text string, isParentNested, hasCause bool, levels []bool) {
+func writeFormattedError(sb *strings.Builder, text string, isParentNested, hasCause, isAlien bool, levels []bool) {
 	if indexByte(text, '\n') == -1 {
-		sb.WriteString(errorText.Render(text))
+		if isAlien {
+			sb.WriteString(alienText.Render(text))
+		} else {
+			sb.WriteString(errorText.Render(text))
+		}
 		return
 	}
 
@@ -181,7 +144,11 @@ func writeFormattedError(sb *strings.Builder, text string, isParentNested, hasCa
 			start += idx + 1
 		}
 
-		sb.WriteString(errorText.Render(line))
+		if isAlien {
+			sb.WriteString(alienText.Render(line))
+		} else {
+			sb.WriteString(errorText.Render(line))
+		}
 		if start < textLen {
 			sb.WriteByte('\n')
 
@@ -196,7 +163,7 @@ func writeFormattedError(sb *strings.Builder, text string, isParentNested, hasCa
 				}
 			} else if !hasCause && isLast {
 				sb.WriteString("    ")
-			} else if hasCause != isParentNested { // hasCause != isParentNested
+			} else if hasCause != isParentNested {
 				sb.WriteString(branchMid)
 				sb.WriteString("  ")
 			}

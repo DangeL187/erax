@@ -5,14 +5,12 @@ import (
 	"strings"
 )
 
-// Format pretty-prints error-trace.
+// Format pretty-prints the error trace.
 //
-// You're a good person, don't put non-erax errors here, ok?
+// You're a good person, so please don't feed it non-Erax errors, okay?
+//
+// It won't break anything (it's just %+v), but... why would you even do that?
 func Format(err error) string {
-	return fmt.Sprintf("%f", err)
-}
-
-func FormatV(err error) string {
 	return fmt.Sprintf("%+v", err)
 }
 
@@ -30,7 +28,7 @@ func formatErrorChain(sb *strings.Builder, err *errorType, isParentNested bool, 
 		levels = append(levels, isNested)
 	}
 
-	writeFormattedError(sb, err.msg, isParentNested, hasCause, levels)
+	writeFormattedError(sb, err.msg, isParentNested, hasCause, false, levels)
 	sb.WriteByte('\n')
 
 	writeMeta(sb, err.meta, false, isParentNested, levels)
@@ -68,7 +66,7 @@ func formatErrorChain(sb *strings.Builder, err *errorType, isParentNested bool, 
 				}
 			}
 
-			formatDefault(sb, next, isNested, append(levels, isLast))
+			formatErrorChain(sb, next, isNested, append(levels, isLast))
 		} else {
 			writeIndent(sb, levels)
 
@@ -78,7 +76,7 @@ func formatErrorChain(sb *strings.Builder, err *errorType, isParentNested bool, 
 				sb.WriteString(branchNextBig)
 			}
 
-			writeFormattedError(sb, ue.Error(), isNested, false, append(levels, isLast))
+			writeFormattedError(sb, fmt.Sprintf("%+v", ue), isNested, false, false, append(levels, isLast))
 		}
 	}
 
@@ -106,7 +104,7 @@ func formatErrorChain(sb *strings.Builder, err *errorType, isParentNested bool, 
 				childLevels = append(childLevels, false)
 			}
 
-			formatDefault(sb, next, isParentNested, childLevels)
+			formatErrorChain(sb, next, isParentNested, childLevels)
 		} else {
 			if len(levels) > 0 && levels[len(levels)-1] {
 				sb.WriteString("  ")
@@ -120,31 +118,9 @@ func formatErrorChain(sb *strings.Builder, err *errorType, isParentNested bool, 
 				sb.WriteString(branchEndBig)
 				childLevels = append(childLevels, true)
 			}
-			writeFormattedError(sb, err.cause.Error(), isParentNested, false, childLevels)
+			writeFormattedError(sb, fmt.Sprintf("%+v", err.cause), isParentNested, false, false, childLevels)
 		}
 	}
-}
-
-func formatAlienError(sb *strings.Builder, err *errorType, isLast bool, levels []bool) {
-	totalTargets := len(err.errs)
-	if err.cause != nil {
-		totalTargets++
-	}
-	targets := make([]error, 0, totalTargets)
-	if err.cause != nil {
-		targets = append(targets, err.cause)
-	}
-	targets = append(targets, err.errs...)
-
-	for i, cause := range targets {
-		if i > 0 {
-			sb.WriteByte('\n')
-		}
-		isCurrentLast := isLast && i == totalTargets-1
-		writeAlienErrorLines(sb, cause, isCurrentLast)
-	}
-
-	writeMeta(sb, err.meta, isLast, false, levels)
 }
 
 func writeIndent(sb *strings.Builder, levels []bool) {

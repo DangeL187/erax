@@ -2,6 +2,11 @@ package erax
 
 import "github.com/charmbracelet/lipgloss"
 
+func SetAlienColor(color lipgloss.Color) {
+	alienColor = color
+	alienText = lipgloss.NewStyle().Foreground(alienColor)
+}
+
 func SetBranchColor(color lipgloss.Color) {
 	branchColor = color
 	branchS = lipgloss.NewStyle().Foreground(branchColor).Render(" ╰╮")
@@ -31,6 +36,7 @@ func SetValueColor(color lipgloss.Color) {
 }
 
 var (
+	alienColor  lipgloss.Color = "#89b4fa"
 	branchColor lipgloss.Color = "#585b70"
 	errorColor  lipgloss.Color = "#f38ba8"
 	keyColor    lipgloss.Color = "#cba6f7"
@@ -46,6 +52,7 @@ var (
 	branchEnd     = lipgloss.NewStyle().Foreground(branchColor).Render("╰─ ")
 	message       = lipgloss.NewStyle().Foreground(branchColor).Render(" ▼ [ERROR TRACE]")
 
+	alienText = lipgloss.NewStyle().Foreground(alienColor)
 	errorText = lipgloss.NewStyle().Foreground(errorColor)
 	keyText   = lipgloss.NewStyle().Foreground(keyColor)
 	valueText = lipgloss.NewStyle().Foreground(valueColor)

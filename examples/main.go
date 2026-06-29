@@ -36,21 +36,20 @@ func jsonPrint(data map[string]any) {
 }
 
 func CreateUser() error {
-	err := erax.New("email is already in use\nemail-LONG")
+	err := erax.New("email is already in use")
 
-	err = erax.WithMeta(err, "failed to create user\nfailed-LONG",
+	err = erax.WithMeta(err, "failed to create user",
 		erax.F("code", "503"),
 		erax.F("info", "This is a really\nreally long information."),
 		erax.F("user_error", "An account with this email already exists."),
 	)
-	err = erax.WrapWithErrors(err, "UNITY\nUNITY-LONG", err)
 	return err
 }
 
 func Register() error {
 	err := CreateUser()
 	return erax.WrapWithErrors(err, "failed to register\nbecause of ducks!",
-		erax.New("random error\nrandom-LONG"),
+		erax.New("random error"),
 	)
 }
 
@@ -59,18 +58,6 @@ func main() {
 	if err == nil {
 		return
 	}
-
-	err = erax.WrapWithErrors(err, "[---]\n[---]-LONG", err)
-	err = erax.WithMeta(err, "AHAH\nAHAH-LONG",
-		erax.F("A", "503"),
-		erax.F("B", "This is a really\nreally long information."),
-		erax.F("C", "An account with this email already exists."),
-	)
-	err = erax.WithMeta(err, "AHAH\nAHAH-LONG",
-		erax.F("A", "503"),
-		erax.F("B", "This is a really\nreally long information."),
-		erax.F("C", "An account with this email already exists."),
-	)
 
 	fmt.Println("Default Logs:")
 	fmt.Println(erax.Format(err))
@@ -93,55 +80,3 @@ func main() {
 		"user_error": errUserError,
 	})
 }
-
-/*
-
- ▼ [ERROR TRACE]
- ╰─ [---] // writeIndents(nil); cause==nil(YES) -> " ╰─ "; append(T); ... cause==nil(YES) -> writeIndents(T); " ├╮";
-     ├╮
-     │╰─ [0] failed to register // writeIndents(T); cause==nil(YES) && isLast(NO) -> " │" -> this.cause==nil -> "╰─"; append(F);
-     │   because of ducks!
-     │    ├╮
-     │    │╰─ [0] random error   // writeIndents(TF); cause==nil(YES) && isLast(NO) -> "├─";
-     │    ╰╮
-     │     ╰─ [1] UNITY          // writeIndents(TF); cause==nil(YES) && isLast -> "├─";
-    F│FF       ├╮
-TTTT │  TTTT   │├─ [0] failed to create user // ? writeIndents(TF); cause==nil && isLast -> "├─";
-     │         ││   ├─ code: 503
-1234 │         ││   ├─ info:
-     │  1234   ││   │   This is a really
-    1│34    123││   │   really long information.
-     │         ││   ╰─ user_error: An account with this email already exists.
-     │         │╰─ email is already in use
-     │         ╰╮
-     │          ├─ [1] failed to create user
-     │          │   ├─ code: 503
-     │          │   ├─ info:
-     │          │   │   This is a really
-     │          │   │   really long information.
-     │          │   ╰─ user_error: An account with this email already exists.
-     ╰╮         ╰─ email is already in use
-      ╰─ [1] failed to register
-         because of ducks!
-          ├╮
-          │╰─ [0] random error   // writeIndents(TF); cause==nil(YES) && isLast(NO) -> "├─";
-          ╰╮
-           ╰─ [1] UNITY          // writeIndents(TF); cause==nil(YES) && isLast -> "├─";
-1234    1234   ├╮
-    1234    123│├─ [0] failed to create user // ? writeIndents(TF); cause==nil && isLast -> "├─";
-               ││   ├─ code: 503
-               ││   ├─ info:
-               ││   │   This is a really
-               ││   │   really long information.
-               ││   ╰─ user_error: An account with this email already exists.
-               │╰─ email is already in use
-               ╰╮
-                ├─ [1] failed to create user
-                │   ├─ code: 503
-                │   ├─ info:
-                │   │   This is a really
-                │   │   really long information.
-                │   ╰─ user_error: An account with this email already exists.
-                ╰─ email is already in use
-
-*/

@@ -88,12 +88,3 @@ func GetMeta(err error, key string) (string, bool) {
 
 	return "", false
 }
-
-func GetMetas(err error) []MetaField {
-	e, isErax := asErax(err)
-	if !isErax {
-		return []MetaField{}
-	}
-
-	return e.meta
-}
