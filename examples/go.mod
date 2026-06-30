@@ -5,6 +5,7 @@ go 1.25.0
 require (
 	github.com/DangeL187/erax v0.3.1
 	github.com/TylerBrock/colorjson v0.0.0-20200706003622-8a50f05110d2
+	github.com/pkg/errors v0.9.1
 	go.uber.org/zap v1.28.0
 )
 

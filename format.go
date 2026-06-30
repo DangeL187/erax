@@ -7,13 +7,14 @@ import (
 
 // Format pretty-prints the error trace.
 //
-// You're a good person, so please don't feed it non-Erax errors, okay?
+// You're a good person, so please don't feed it non-erax errors, okay?
 //
 // It won't break anything (it's just %+v), but... why would you even do that?
 func Format(err error) string {
 	return fmt.Sprintf("%+v", err)
 }
 
+// formatErrorChain recursively formats an error chain into a string builder with tree visualization.
 func formatErrorChain(sb *strings.Builder, err *errorType, isParentNested bool, levels []bool) {
 	hasCause := err.cause != nil
 	hasErrs := len(err.errs) > 0
@@ -31,7 +32,7 @@ func formatErrorChain(sb *strings.Builder, err *errorType, isParentNested bool, 
 	writeFormattedError(sb, err.msg, isParentNested, hasCause, false, levels)
 	sb.WriteByte('\n')
 
-	writeMeta(sb, err.meta, false, isParentNested, levels)
+	writeMeta(sb, err.meta, isParentNested, levels)
 
 	if !hasCause && !hasErrs {
 		return
@@ -119,17 +120,6 @@ func formatErrorChain(sb *strings.Builder, err *errorType, isParentNested bool, 
 				childLevels = append(childLevels, true)
 			}
 			writeFormattedError(sb, fmt.Sprintf("%+v", err.cause), isParentNested, false, false, childLevels)
-		}
-	}
-}
-
-func writeIndent(sb *strings.Builder, levels []bool) {
-	for _, isLast := range levels {
-		if isLast {
-			sb.WriteString("     ")
-		} else {
-			sb.WriteString(branchMid)
-			sb.WriteString("   ")
 		}
 	}
 }

@@ -12,6 +12,7 @@ func Cast(err error) error {
 	return cast(err)
 }
 
+// TODO: rewrite it without recursion
 func cast(err error) error {
 	if err == nil {
 		return nil
@@ -20,11 +21,9 @@ func cast(err error) error {
 	if uw, ok := err.(interface{ Unwrap() []error }); ok {
 		children := uw.Unwrap()
 
-		errs := make([]error, 0, len(children))
-		for _, child := range children {
-			if child != nil {
-				errs = append(errs, cast(child))
-			}
+		errs := make([]error, len(children))
+		for i, child := range children {
+			errs[i] = cast(child)
 		}
 
 		return &errorType{
@@ -34,13 +33,11 @@ func cast(err error) error {
 	}
 
 	if uw, ok := err.(interface{ Unwrap() error }); ok {
-		if child := uw.Unwrap(); child != nil {
-			return &errorType{
-				msg:   err.Error(),
-				cause: cast(child),
-			}
+		return &errorType{
+			msg:   err.Error(),
+			cause: cast(uw.Unwrap()),
 		}
 	}
 
-	return New(err.Error())
+	return err
 }

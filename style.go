@@ -2,11 +2,13 @@ package erax
 
 import "github.com/charmbracelet/lipgloss"
 
+// SetAlienColor sets the color for non-erax errors in formatted output.
 func SetAlienColor(color lipgloss.Color) {
 	alienColor = color
 	alienText = lipgloss.NewStyle().Foreground(alienColor)
 }
 
+// SetBranchColor sets the color for tree branch characters in formatted output.
 func SetBranchColor(color lipgloss.Color) {
 	branchColor = color
 	branchS = lipgloss.NewStyle().Foreground(branchColor).Render(" ╰╮")
@@ -20,16 +22,19 @@ func SetBranchColor(color lipgloss.Color) {
 	message = lipgloss.NewStyle().Foreground(branchColor).Render(" ▼ [ERROR TRACE]")
 }
 
+// SetErrorColor sets the color for erax error messages in formatted output.
 func SetErrorColor(color lipgloss.Color) {
 	errorColor = color
 	errorText = lipgloss.NewStyle().Foreground(errorColor)
 }
 
+// SetKeyColor sets the color for metadata keys in formatted output.
 func SetKeyColor(color lipgloss.Color) {
 	keyColor = color
 	keyText = lipgloss.NewStyle().Foreground(keyColor)
 }
 
+// SetValueColor sets the color for metadata values in formatted output.
 func SetValueColor(color lipgloss.Color) {
 	valueColor = color
 	valueText = lipgloss.NewStyle().Foreground(valueColor)
@@ -42,6 +47,7 @@ var (
 	keyColor    lipgloss.Color = "#cba6f7"
 	valueColor  lipgloss.Color = "#a6e3a1"
 
+	// Branch style strings
 	branchS       = lipgloss.NewStyle().Foreground(branchColor).Render(" ╰╮")
 	branchH       = lipgloss.NewStyle().Foreground(branchColor).Render(" ├╮")
 	branchTwix    = lipgloss.NewStyle().Foreground(branchColor).Render(" ││ ")

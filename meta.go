@@ -1,13 +1,19 @@
 package erax
 
+// MetaField represents a key-value pair for error metadata.
 type MetaField struct {
 	Key, Value string
 }
 
+// F is a convenience function to create a MetaField.
 func F(k, v string) MetaField {
 	return MetaField{Key: k, Value: v}
 }
 
+// WithMeta wraps an error with metadata and a new message.
+//
+// If the error is nil, returns nil.
+// If no fields are provided, returns the original error unchanged.
 func WithMeta(err error, message string, fields ...MetaField) error {
 	if err == nil {
 		return nil
@@ -24,7 +30,14 @@ func WithMeta(err error, message string, fields ...MetaField) error {
 	}
 }
 
-func AddMeta(err error, key, value string) error {
+// AddMeta is useful when metadata is added incrementally.
+//
+// If the error is already an erax error, only the key-value pair is added.
+// The message argument is ignored in that case, so it should be left empty.
+//
+// If you already know all fields, prefer WithMeta instead,
+// as it performs fewer allocations.
+func AddMeta(err error, message string, key, value string) error {
 	if err == nil {
 		return nil
 	}
@@ -42,6 +55,9 @@ func AddMeta(err error, key, value string) error {
 	}
 }
 
+// GetMeta searches for a metadata field by key across the entire error chain.
+//
+// It searches from the most recent error backwards through causes and children.
 func GetMeta(err error, key string) (string, bool) {
 	if err == nil {
 		return "", false

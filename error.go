@@ -14,6 +14,10 @@ type errorType struct {
 	msg   string
 }
 
+// Unwrap returns the child errors of this error.
+//
+// This implements Go's error unwrapping interface.
+// Returns either []error containing cause or errors, or nil if there are no children.
 func (e *errorType) Unwrap() []error {
 	if len(e.errs) > 0 {
 		return e.errs
@@ -26,8 +30,12 @@ func (e *errorType) Unwrap() []error {
 	return nil
 }
 
+// Error returns the error message string.
 func (e *errorType) Error() string { return e.msg }
 
+// Format implements fmt.Formatter for custom formatting.
+//
+// With %+v it prints a detailed error trace with tree visualization.
 func (e *errorType) Format(s fmt.State, verb rune) {
 	switch verb {
 	case 'v':
@@ -48,6 +56,7 @@ func (e *errorType) Format(s fmt.State, verb rune) {
 	}
 }
 
+// New creates a new standard Go error with the given message.
 func New(message string) error {
 	return errors.New(message)
 }
