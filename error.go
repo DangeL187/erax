@@ -4,32 +4,48 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"strings"
 )
 
 type errorType struct {
-	err  error
-	meta map[string]string
-	msg  string
+	cause error
+	errs  []error
+	meta  []MetaField
+	msg   string
 }
 
-func (e *errorType) Unwrap() error { return e.err }
+// Unwrap returns the child errors of this error.
+//
+// This implements Go's error unwrapping interface.
+// Returns either []error containing cause or errors, or nil if there are no children.
+func (e *errorType) Unwrap() []error {
+	if len(e.errs) > 0 {
+		return e.errs
+	}
 
+	if e.cause != nil {
+		return []error{e.cause}
+	}
+
+	return nil
+}
+
+// Error returns the error message string.
 func (e *errorType) Error() string { return e.msg }
 
+// Format implements fmt.Formatter for custom formatting.
+//
+// With %+v it prints a detailed error trace with tree visualization.
 func (e *errorType) Format(s fmt.State, verb rune) {
 	switch verb {
-	case 'f':
-		_, _ = io.WriteString(s, formatErrorChain(e, true))
 	case 'v':
 		if s.Flag('+') {
-			unwrapped := e.Unwrap()
-			msg := e.Error()
-
-			if msg != "" {
-				_, _ = io.WriteString(s, formatErrorChain(e, false))
-			} else if unwrapped != nil {
-				_, _ = io.WriteString(s, formatAlienError(e, true))
-			}
+			var sb strings.Builder
+			sb.Grow(512)
+			sb.WriteString(message)
+			sb.WriteByte('\n')
+			formatErrorChain(&sb, e, false, nil)
+			_, _ = io.WriteString(s, sb.String())
 			return
 		}
 		fallthrough
@@ -40,80 +56,7 @@ func (e *errorType) Format(s fmt.State, verb rune) {
 	}
 }
 
-func Wrap(err error, message string) error {
-	if err == nil {
-		return nil
-	}
-
-	return &errorType{
-		err: err,
-		msg: message,
-	}
-}
-
-func WrapWithError(err, newErr error, message string) error {
-	if err == nil {
-		return newErr
-	}
-
-	return &errorType{
-		err: errors.Join(newErr, err),
-		msg: message,
-	}
-}
-
-func WithMeta(err error, key, value string) error {
-	if err == nil {
-		return nil
-	}
-
-	var e *errorType
-	if errors.As(err, &e) {
-		if e.meta == nil {
-			e.meta = make(map[string]string)
-		}
-		e.meta[key] = value
-		return err
-	}
-
-	return &errorType{
-		err: err,
-		msg: "",
-		meta: map[string]string{
-			key: value,
-		},
-	}
-}
-
-func GetMeta(err error, key string) (string, bool) {
-	for err != nil {
-		var e *errorType
-		if errors.As(err, &e) {
-			if e.meta != nil {
-				if v, ok := e.meta[key]; ok {
-					return v, true
-				}
-			}
-		}
-		err = errors.Unwrap(err)
-	}
-	return "", false
-}
-
-func GetMetas(err error) map[string]string {
-	var e *errorType
-	if !errors.As(err, &e) {
-		return map[string]string{}
-	}
-
-	if e.meta == nil {
-		return map[string]string{}
-	}
-
-	out := make(map[string]string, len(e.meta))
-	for k, v := range e.meta {
-		out[k] = v
-	}
-
-	return out
+// New creates a new standard Go error with the given message.
+func New(message string) error {
+	return errors.New(message)
 }
