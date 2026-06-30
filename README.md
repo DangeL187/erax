@@ -1,16 +1,23 @@
-<div align="center">
-  <p></p>
-  <img width="10%" height="10%" src="img/logo.png" alt="erax">
-</div>
+# 🍃 v0.4.0 Is Here
+
+This release is a **massive** step forward.
+
+The core pipeline is now up to **5x faster**, uses up to **76% less memory**, and **cuts allocations by up to 98%**.
+Check out the [benchmarks](Benchmarks.md)!
+
+We also **redesigned the API** to make common workflows simpler, added support for **nested error trees**,
+and cleaned up a lot of rough edges.
+
+Enjoy!
 
 # About
 
-`erax` is a Go package that enhances error handling with structured metadata and beautiful CLI output.
+`erax` is a Go package that enhances error handling with structured metadata and beautiful CLI output. It treats errors as first-class data structures, not just strings.
 
 It provides error chaining, custom metadata, and styled error traces using
 the [lipgloss](https://github.com/charmbracelet/lipgloss) library.
 
-![image](https://github.com/DangeL187/erax/blob/main/img/demo.png)
+![image](img/demo.png)
 
 # 🖤 Features
 
@@ -24,6 +31,7 @@ the [lipgloss](https://github.com/charmbracelet/lipgloss) library.
 # 🔥 Wanna start NOW?
 
 Below is a lame section for those who may feel unconfident.
+
 If you are already cool enough - check out the [How To Use](HowToUse.md) guide.
 
 # Why Go error handling sucks
@@ -67,7 +75,7 @@ patch compatibility, this approach fundamentally lacks semantic structure: it fo
 into flat, unparsed text strings. Instead of enabling clean, machine-readable telemetry, it leaves teams with
 bloated error values that are **difficult to inspect programmatically** and **impossible to cleanly map** to modern structured loggers.
 
-## 2. We'll just make our own error types
+## 2. "We'll just make our own error types"
 
 Another pervasive issue in team environments is the uncontrolled proliferation of **custom error types**,
 which leads to fragmented and unmaintainable codebases. When every team or package invents **its own error
